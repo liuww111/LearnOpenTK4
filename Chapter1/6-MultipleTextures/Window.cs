@@ -120,8 +120,6 @@ namespace LearnOpenTK
             _texture2.Use(TextureUnit.Texture1);
             _shader.Use();
 
-
-
             GL.DrawElements(PrimitiveType.Triangles, _indices.Length, DrawElementsType.UnsignedInt, 0);
 
             SwapBuffers();

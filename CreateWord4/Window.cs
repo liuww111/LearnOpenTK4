@@ -15,7 +15,9 @@ using System.IO;
 
 namespace LearnOpenTK
 {
-
+    /// <summary>
+    /// 增加背景纹理绘制和文字混合
+    /// </summary>
     public class Window : GameWindow
     {
         private float frameTime = 0.0f;
@@ -27,6 +29,8 @@ namespace LearnOpenTK
 
         private Shader _shader;
         private Texture _texture;
+
+        private FontManage _fontManage;
 
         public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
             : base(gameWindowSettings, nativeWindowSettings)
@@ -53,23 +57,10 @@ namespace LearnOpenTK
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             //VSync = VSyncMode.Off;
-            _vertexArrayObject = GL.GenVertexArray();
-            GL.BindVertexArray(_vertexArrayObject);
 
-            _vertexBufferObject = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexBufferObject);
-            //2D 平面，每个角只需要x,y，由两个三角形组成
-            GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 6 * 4, IntPtr.Zero, BufferUsageHint.DynamicDraw);
-            GL.EnableVertexAttribArray(0);
-            GL.VertexAttribPointer(0, 4, VertexAttribPointerType.Float, false, 0, 0);
+            BackgroundInit();
 
-            _shader = new Shader("Shaders/tileShader.vert", "Shaders/tileShader.frag");
-            _shader.SetMatrix4("projection", Shader.GLMOrthographic(0.0f, Size.X, 0.0f, Size.Y));//投影的场景大小
-
-            _texture = Texture.LoadFromFile("Resources/Tile/Tile4.png");
-            //_texture.Use(TextureUnit.Texture0);
-
-            
+            _fontManage = new FontManage(Size.X, Size.Y, @"./Resources/Fonts/STKAITI.TTF", "./Resources/stringFont.txt");
         }
 
         /// <summary>
@@ -98,33 +89,14 @@ namespace LearnOpenTK
             base.OnRenderFrame(e);
             //开始用设定的颜色来清空屏幕
             GL.Clear(ClearBufferMask.ColorBufferBit);
-
-            GL.BindVertexArray(_vertexArrayObject);
-
-            /*
-            model：模型自己的位置（局部空间），一般调整方位，比如靠旋转
-            view：模型在世界空间内的位置，视角内观察到的位置
-            projection：模型所在的世界空间裁剪的矩阵（世界空间）
-            */
-
-            //循环绘制
-            _texture.Use(TextureUnit.Texture0);
-            _shader.Use();
-
-            int r = Size.Y / _texture.Height;
-            int c= Size.X / _texture.Width;
-
-            //开始绘制
-            for (int row = 0; row < r; row++) 
+            BackgroundDraw();
             {
-                for (int column=0; column<c; column++) {
-                    var vertices = TileVertices(column * _texture.Width, row * _texture.Height, _texture.Width, _texture.Height);
-                    //GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
-                    GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, sizeof(float)* vertices.Length, vertices);
-                    GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-                }
+                var _fps = Math.Round(1d / e.Time);
+                _fontManage.PrintText(_fps.ToString() + "FPS,我是谁？", 0f, 600f - 48f, 1f, new Vector3(0.2f, 0.5f, 0.3f));
+                //string str = "FPS,我是谁？";
+                //_fontManage.PrintText(_fps.ToString() + str, 0f, 600f - 48f, 1f, new Vector3(0.8f, 0.2f, 0.1f));
             }
-
+            
             base.SwapBuffers();//交换缓冲，建议最后
         }
 
@@ -175,6 +147,60 @@ namespace LearnOpenTK
                     xpos + w, ypos, 1.0f, 1.0f,
                     xpos + w, ypos+h, 1.0f, 0.0f
             };
+        }
+
+        private void BackgroundInit()
+        {
+            _vertexArrayObject = GL.GenVertexArray();
+            GL.BindVertexArray(_vertexArrayObject);
+
+            _vertexBufferObject = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexBufferObject);
+            //2D 平面，每个角只需要x,y，由两个三角形组成
+            GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 6 * 4, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+            GL.EnableVertexAttribArray(0);
+            GL.VertexAttribPointer(0, 4, VertexAttribPointerType.Float, false, 0, 0);
+
+            _shader = new Shader("Shaders/tileShader.vert", "Shaders/tileShader.frag");
+            _shader.SetMatrix4("projection", Shader.GLMOrthographic(0.0f, Size.X, 0.0f, Size.Y));//投影的场景大小
+
+            _texture = Texture.LoadFromFile("Resources/Tile/Tile4.png");
+            //_texture.Use(TextureUnit.Texture0);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            GL.BindVertexArray(0);
+
+        }
+        /// <summary>
+        /// 绘制背景
+        /// </summary>
+        private void BackgroundDraw() {
+            //VAO和VBO要同时绑定同时解绑
+            GL.BindVertexArray(_vertexArrayObject);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexBufferObject);
+            /*
+            model：模型自己的位置（局部空间），一般调整方位，比如靠旋转
+            view：模型在世界空间内的位置，视角内观察到的位置
+            projection：模型所在的世界空间裁剪的矩阵（世界空间）
+            */
+            //循环绘制
+            _texture.Use(TextureUnit.Texture0);
+            _shader.Use();
+
+            int r = Size.Y / _texture.Height;
+            int c = Size.X / _texture.Width;
+
+            //开始绘制
+            for (int row = 0; row < r; row++)
+            {
+                for (int column = 0; column < c; column++)
+                {
+                    var vertices = TileVertices(column * _texture.Width, row * _texture.Height, _texture.Width, _texture.Height);
+                    //GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+                    GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, sizeof(float) * vertices.Length, vertices);
+                    GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+                }
+            }
         }
     }
 }

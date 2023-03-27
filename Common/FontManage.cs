@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using static FreeTypeSharp.Native.FT;
 
 namespace LearnOpenTK.Common
@@ -43,7 +45,7 @@ namespace LearnOpenTK.Common
         }
 
         public void PrintText(string text, float x, float y, float scale, Vector3 color) {
-            _fontRenderer.PrintText(text,x,y,scale,color);
+            _fontRenderer.PrintText(text, x, y, scale, color);
         }
     }
 
@@ -90,6 +92,7 @@ namespace LearnOpenTK.Common
             GL.BufferData(BufferTarget.ArrayBuffer, sizeof(float) * 6 * 4, IntPtr.Zero, BufferUsageHint.DynamicDraw);
 
             _shader = new Shader("./Shaders/textShader.vert", "./Shaders/textShader.frag");
+
         }
         /// <summary>
         /// 显示文本
@@ -102,19 +105,11 @@ namespace LearnOpenTK.Common
         public void PrintText(string text, float x, float y, float scale, Vector3 color)
         {
             _shader.Use();
-            //_shader.SetMatrix4("projection", _projection);
             _shader.SetMatrix4("projection", _projection);
             _shader.SetVector3("textColor", color);
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindVertexArray(_vao);
-
-            //x = _width * (x - 0.5f);
-            //y = (_height - 48 * 2) * (-y + 0.5f);
-            
-            //右上角为(0,0)原点
-            //x = x - _width / 2;
-            //y = _height / 2 - y;
 
             for (int i = 0; i < text.Length; i++)
             {
@@ -127,15 +122,52 @@ namespace LearnOpenTK.Common
                 {
                     c = Character.Characters["?"];//异常字符
                 }
+                DrawChar(c, x, y, scale, color);
 
-                float xpos = x + c.Bearing.X * scale;
-                float ypos = y - (c.Size.Y - c.Bearing.Y) * scale;
+                x += (c.Advance >> 6) * scale;//Advance（单位：1/64像素）2的6次幂是64
+            }
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            GL.BindVertexArray(0);
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="c"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="scale"></param>
+        /// <param name="color"></param>
+        public void PrintChar(char c, float x, float y, float scale, Vector3 color)
+        {
+            Character _c;
+            if (Character.Characters.TryGetValue(c.ToString(), out Character value))
+            {
+                _c = value;
+            }
+            else
+            {
+                _c = Character.Characters["?"];//异常字符
+            }
+            DrawChar(_c, x, y, scale, color);
+        }
 
-                float w = c.Size.X * scale;
-                float h = c.Size.Y * scale;
+        private void DrawChar(Character c, float x, float y, float scale, Vector3 color)
+        {
+            _shader.Use();
+            _shader.SetMatrix4("projection", _projection);
+            _shader.SetVector3("textColor", color);
 
-                float[] vertices = new float[]
-                {
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindVertexArray(_vao);
+
+            float xpos = x + c.Bearing.X * scale;
+            float ypos = y - (c.Size.Y - c.Bearing.Y) * scale;
+
+            float w = c.Size.X * scale;
+            float h = c.Size.Y * scale;
+
+            float[] vertices = new float[]
+            {
                     xpos, ypos+h, 0.0f, 0.0f,
                     xpos, ypos, 0.0f, 1.0f,
                     xpos + w, ypos, 1.0f, 1.0f,
@@ -143,20 +175,18 @@ namespace LearnOpenTK.Common
                     xpos, ypos+h, 0.0f, 0.0f,
                     xpos + w, ypos, 1.0f, 1.0f,
                     xpos + w, ypos+h, 1.0f, 0.0f
-                };
+            };
 
-                GL.BindTexture(TextureTarget.Texture2D, c.Texture);
+            GL.BindTexture(TextureTarget.Texture2D, c.Texture);
 
-                GL.EnableVertexAttribArray(0);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-                GL.VertexAttribPointer(0, 4, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(0);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
+            GL.VertexAttribPointer(0, 4, VertexAttribPointerType.Float, false, 0, 0);
 
-                GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
 
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
-                x += (c.Advance >> 6) * scale;//Advance（单位：1/64像素）2的6次幂是64
-            }
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.BindVertexArray(0);
         }

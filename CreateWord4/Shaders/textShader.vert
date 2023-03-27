@@ -1,20 +1,12 @@
 #version 330 core
+layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
+out vec2 TexCoords;
 
-layout(location = 0) in vec3 aPosition;
+uniform mat4 projection;
 
-// We add another input variable for the texture coordinates.
-
-layout(location = 1) in vec2 aTexCoord;
-
-// ...However, they aren't needed for the vertex shader itself.
-// Instead, we create an output variable so we can send that data to the fragment shader.
-
-out vec2 texCoord;
-
-void main(void)
+void main()
 {
-
-    texCoord = aTexCoord;
-
-    gl_Position = vec4(aPosition, 1.0);
-}
+    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
+    //gl_Position = vec4(vertex.xy, 0.0, 1.0);
+    TexCoords = vertex.zw;
+} 
