@@ -16,16 +16,22 @@ using System.IO;
 namespace LearnOpenTK
 {
     /// <summary>
-    /// 增加背景纹理绘制和文字混合
+    /// 多着色器多纹理
     /// </summary>
     public class Window : GameWindow
     {
 
         private Shader _shader;
+        
+        private Shader _shader2;
 
         private TexturePlus _texture1;
 
         private TexturePlus _texture2;
+
+        private TexturePlus _texture3;
+
+        private ImagePlus _texture4;
 
         private System.Threading.Timer _computeTimer;
 
@@ -36,11 +42,12 @@ namespace LearnOpenTK
         public Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
             : base(gameWindowSettings, nativeWindowSettings)
         {
-            var Version = GL.GetString(StringName.Version);
+            var Version = GL.GetString(StringName.Version);//OpenGL版本
             var Vendor = GL.GetString(StringName.Vendor);
-            var Renderer=GL.GetString(StringName.Renderer);
-            var ShadingLanguageVersion = GL.GetString(StringName.ShadingLanguageVersion);
-            Debug.WriteLine($"Version:{Version} Vendor:{Vendor} Renderer:{Renderer} Renderer:{ShadingLanguageVersion}");
+            var Renderer = GL.GetString(StringName.Renderer);//渲染器 显卡
+            var ShadingLanguageVersion = GL.GetString(StringName.ShadingLanguageVersion);//GLSL版本
+
+            Debug.WriteLine($"Version:{Version} Vendor:{Vendor} Renderer:{Renderer} GLSL:{ShadingLanguageVersion}");
             base.VSync = VSyncMode.On;//同步的模式，此处开启垂直同步
 
             //https://learnopengl-cn.github.io/04%20Advanced%20OpenGL/04%20Face%20culling/
@@ -120,6 +127,11 @@ namespace LearnOpenTK
             _texture1.Use(unit: TextureUnit.Texture0);
             _texture2.Use(unit: TextureUnit.Texture1);
 
+            //_shader2.Use();
+            //_texture3.Use(unit: TextureUnit.Texture0);
+
+            _texture4.Use();
+
             base.SwapBuffers();//交换缓冲，建议最后
         }
         
@@ -134,16 +146,22 @@ namespace LearnOpenTK
         }
 
         private void MixChangeInit() {
-             
 
             _shader = new Shader("Shaders/mixShader.vert", "Shaders/mixShader.frag");
             // 指定采样器的取的纹理单元
             _shader.SetInt("texture0", 0);
             _shader.SetInt("texture1", 1);
             _shader.SetMatrix4("projection", Shader.GLMOrthographic(0.0f, Size.X, 0.0f, Size.Y));//投影的场景大小
- 
+
+            _shader2 = new Shader("Shaders/tileShader.vert", "Shaders/tileShader.frag");
+            _shader2.SetMatrix4("projection", Shader.GLMOrthographic(0.0f, Size.X, 0.0f, Size.Y));//投影的场景大小
+
             _texture1 = TexturePlus.LoadFromFile("Resources/Img/bag0.png");
             _texture2 = TexturePlus.LoadFromFile("Resources/Img/bag2.png");
+
+            _texture3 = TexturePlus.LoadFromFile("Resources/Img/bag1.png");
+
+            _texture4 = ImagePlus.Load("Resources/Img/bag3.png", _shader2);
 
             //每0.1秒进行一次变换
             _computeTimer = new System.Threading.Timer(t =>
